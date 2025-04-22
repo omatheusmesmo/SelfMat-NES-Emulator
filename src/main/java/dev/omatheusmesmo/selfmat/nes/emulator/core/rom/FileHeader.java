@@ -1,4 +1,4 @@
-package core.rom;
+package main.java.dev.omatheusmesmo.selfmat.nes.emulator.core.rom;
 
 import java.io.FileInputStream;
 import java.io.IOException;
