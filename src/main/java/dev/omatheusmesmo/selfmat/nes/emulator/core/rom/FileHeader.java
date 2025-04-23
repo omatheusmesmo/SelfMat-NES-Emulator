@@ -1,4 +1,4 @@
-package core.rom;
+package main.java.dev.omatheusmesmo.selfmat.nes.emulator.core.rom;
 
 import java.io.FileInputStream;
 import java.io.IOException;
@@ -27,7 +27,7 @@ public class FileHeader {
             System.out.println("NES File Valid: " + (nesFileValid ? "Yes" : "No"));
             System.out.println("PRG ROM Size: " + prgRomSize + " KB");
             System.out.println("CHR ROM Size: " + chrRomSize + " KB");
-            System.out.println("Mapper Number: " + mapperNumber);
+            System.out.println("MapperManager Number: " + mapperNumber);
             System.out.println("Mirroring: " + (isVerticalMirroring ? "Vertical" : "Horizontal"));
             System.out.println("Uses Battery: " + (usesBattery ? "Yes" : "No"));
             System.out.println("Has Trainer: " + (hasTrainer ? "Yes" : "No"));
