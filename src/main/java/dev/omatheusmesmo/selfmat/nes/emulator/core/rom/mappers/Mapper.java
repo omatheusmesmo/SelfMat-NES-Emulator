@@ -1,5 +1,6 @@
 package dev.omatheusmesmo.selfmat.nes.emulator.core.rom.mappers;
 
+
 import dev.omatheusmesmo.selfmat.nes.emulator.core.ppu.MirroringMode;
 
 /**
@@ -50,6 +51,7 @@ public abstract class Mapper {
     /** PRG RAM data. Allocation might be needed in subclasses or based on flags. */
     protected byte[] prgRamData;
 
+
     private MirroringMode mirroringMode;
 
     public Mapper(int mapperNumber, int prgRomSizeBytes, int chrDataSizeBytes, boolean isVerticalMirroring) {
@@ -66,7 +68,6 @@ public abstract class Mapper {
 
         // Set initial mirroring mode from the header info
         this.mirroringMode = isVerticalMirroring ? MirroringMode.VERTICAL : MirroringMode.HORIZONTAL;
-
     }
 
     /**
@@ -123,7 +124,6 @@ public abstract class Mapper {
     // --- Optional Methods for Advanced Mappers ---
 
     /**
-
      * Gets the current mirroring mode. The PPU will call this to map nametable addresses.
      * This is final to ensure consistent behavior across all mappers.
      * @return The current MirroringMode.
