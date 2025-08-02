@@ -1,5 +1,7 @@
 package dev.omatheusmesmo.selfmat.nes.emulator.core.rom.mappers;
 
+import dev.omatheusmesmo.selfmat.nes.emulator.core.ppu.MirroringMode;
+
 /**
  * Abstract base class for all NES memory mappers.
  * Controls how CPU and PPU access cartridge's PRG and CHR memory.
@@ -37,6 +39,8 @@ public abstract class Mapper {
     /** Number of 8KB CHR ROM banks (0 indicates CHR RAM). */
     protected final int chrBanks;
 
+    protected final boolean isChrRam;
+
     /** Raw PRG ROM data. Needs to be populated via loadRomData(). */
     protected byte[] prgRomData;
 
@@ -46,34 +50,23 @@ public abstract class Mapper {
     /** PRG RAM data. Allocation might be needed in subclasses or based on flags. */
     protected byte[] prgRamData;
 
-    /** Static mirroring type from header (true=Vertical, false=Horizontal). Can be overridden. */
-    protected boolean isVerticalMirroring;
+    private MirroringMode mirroringMode;
 
-    /**
-     * Constructs a new Mapper instance.
-     * Initializes metadata based on header info. Actual ROM data must be loaded separately.
-     *
-     * @param mapperNumber        The iNES mapper number.
-     * @param prgRomSizeBytes     Total size of PRG ROM in bytes.
-     * @param chrDataSizeBytes    Total size of CHR ROM in bytes (0 if CHR RAM is used).
-     * @param isVerticalMirroring Initial mirroring type from the header.
-     */
     public Mapper(int mapperNumber, int prgRomSizeBytes, int chrDataSizeBytes, boolean isVerticalMirroring) {
         this.mapperNumber = mapperNumber;
-        this.isVerticalMirroring = isVerticalMirroring;
-
-        // Calculate banks using constants
         this.prgBanks = prgRomSizeBytes / PRG_BANK_SIZE_BYTES;
-        this.chrBanks = chrDataSizeBytes == 0 ? 0 : chrDataSizeBytes / CHR_BANK_SIZE_BYTES;
 
-        // Allocate CHR RAM if needed, using constant size
-        if (this.chrBanks == 0 && chrDataSizeBytes == 0) {
+        this.isChrRam = (chrDataSizeBytes == 0);
+        if (this.isChrRam) {
             this.chrData = new byte[CHR_BANK_SIZE_BYTES];
-            System.out.println("Mapper allocated " + (CHR_BANK_SIZE_BYTES / 1024) + "KB CHR RAM.");
+            this.chrBanks = 0;
+        } else {
+            this.chrBanks = chrDataSizeBytes / CHR_BANK_SIZE_BYTES;
         }
-        // Note: PRG RAM allocation logic might depend on header flags (e.g., battery)
-        // or mapper type, often handled by the Cartridge/Loader or in specific mapper subclasses.
-        // Example: if (header.hasBattery()) { this.prgRamData = new byte[8192]; }
+
+        // Set initial mirroring mode from the header info
+        this.mirroringMode = isVerticalMirroring ? MirroringMode.VERTICAL : MirroringMode.HORIZONTAL;
+
     }
 
     /**
@@ -130,11 +123,22 @@ public abstract class Mapper {
     // --- Optional Methods for Advanced Mappers ---
 
     /**
-     * Returns the current mirroring mode (true=Vertical, false=Horizontal).
-     * Default returns static mirroring. Override for dynamic mirroring mappers.
+
+     * Gets the current mirroring mode. The PPU will call this to map nametable addresses.
+     * This is final to ensure consistent behavior across all mappers.
+     * @return The current MirroringMode.
      */
-    public boolean getMirroringType() {
-        return isVerticalMirroring;
+    public final MirroringMode getMirroringMode() {
+        return this.mirroringMode;
+    }
+
+    /**
+     * Sets the mirroring mode. Called by concrete mapper implementations like MMC1.
+     * This is protected so only subclasses can change the mirroring.
+     * @param mode The new mirroring mode to set.
+     */
+    protected final void setMirroringMode(MirroringMode mode) {
+        this.mirroringMode = mode;
     }
 
     /**
