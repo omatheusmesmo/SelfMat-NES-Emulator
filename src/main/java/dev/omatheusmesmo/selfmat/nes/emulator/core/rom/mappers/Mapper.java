@@ -66,6 +66,7 @@ public abstract class Mapper {
 
         // Set initial mirroring mode from the header info
         this.mirroringMode = isVerticalMirroring ? MirroringMode.VERTICAL : MirroringMode.HORIZONTAL;
+
     }
 
     /**
@@ -122,6 +123,7 @@ public abstract class Mapper {
     // --- Optional Methods for Advanced Mappers ---
 
     /**
+
      * Gets the current mirroring mode. The PPU will call this to map nametable addresses.
      * This is final to ensure consistent behavior across all mappers.
      * @return The current MirroringMode.
