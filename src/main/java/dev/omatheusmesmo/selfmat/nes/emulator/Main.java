@@ -1,4 +1,4 @@
-package dev.omatheusmesmo;
+package dev.omatheusmesmo.selfmat.nes.emulator;
 
 import dev.omatheusmesmo.selfmat.nes.emulator.core.rom.Cartridge;
 import dev.omatheusmesmo.selfmat.nes.emulator.core.rom.RomLoader;
