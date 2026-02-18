@@ -8,13 +8,25 @@ public record Cartridge(
         byte[] chrRomData,
         byte[] trainerData,
         Mapper mapper
-) {
+) implements ICartridge {
 
+    @Override
     public byte cpuRead(int address){
         return mapper.cpuRead(address);
     }
 
-    public void cpuWrite(int address, byte cpu){
-        mapper.cpuWrite(address, cpu);
+    @Override
+    public void cpuWrite(int address, byte data){
+        mapper.cpuWrite(address, data);
+    }
+
+    @Override
+    public Mapper getMapper() {
+        return mapper;
+    }
+
+    @Override
+    public void loadMapperData(byte[] prgRomData, byte[] chrRomData) {
+        mapper.loadRomData(prgRomData, chrRomData);
     }
 }
