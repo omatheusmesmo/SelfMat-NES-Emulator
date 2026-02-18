@@ -1,6 +1,6 @@
 package dev.omatheusmesmo.selfmat.nes.emulator.core.memory;
 
-import dev.omatheusmesmo.selfmat.nes.emulator.core.rom.Cartridge;
+import dev.omatheusmesmo.selfmat.nes.emulator.core.rom.ICartridge;
 
 /**
  * The Bus connects all components of the NES (CPU, RAM, PPU, APU, Cartridge).
@@ -28,9 +28,9 @@ public class Bus {
     private final byte[] cpuRam = new byte[RAM_SIZE];
     private final byte[] ppuRegisters = new byte[PPU_REGISTERS_SIZE];
     private final byte[] apuRegisters = new byte[APU_IO_SIZE];
-    private final Cartridge cartridge;
+    private final ICartridge cartridge;
 
-    public Bus(Cartridge cartridge) {
+    public Bus(ICartridge cartridge) {
         this.cartridge = cartridge;
     }
 
