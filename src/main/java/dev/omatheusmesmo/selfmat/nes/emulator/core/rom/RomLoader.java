@@ -1,5 +1,7 @@
 package dev.omatheusmesmo.selfmat.nes.emulator.core.rom;
 
+import dev.omatheusmesmo.selfmat.nes.emulator.core.rom.mappers.Mapper;
+
 import java.io.FileInputStream;
 import java.io.IOException;
 import java.util.ArrayList;
@@ -47,8 +49,12 @@ public class RomLoader {
                 throw new IOException("Unexpected end of file while reading CHR ROM.");
             }
 
+            Mapper mapper = MapperManager.createMapper(
+                    NESFileHeader.getMapperNumber(), prgRomSize, chrRomSize, NESFileHeader.isVerticalMirroring()
+            );
+
             // Return Cartridge
-            return new Cartridge(NESFileHeader, prgRomData, chrRomData, trainerData);
+            return new Cartridge(NESFileHeader, prgRomData, chrRomData, trainerData, mapper);
         }
     }
 }
