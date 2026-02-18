@@ -9,7 +9,7 @@ import java.util.List;
 
 public class RomLoader {
 
-    public Cartridge loadRom(String filePath) throws IOException {
+    public ICartridge loadRom(String filePath) throws IOException {
         try (FileInputStream fis = new FileInputStream(filePath)) {
             // Read header
             List<Byte> header = new ArrayList<>();
@@ -53,7 +53,10 @@ public class RomLoader {
                     NESFileHeader.getMapperNumber(), prgRomSize, chrRomSize, NESFileHeader.isVerticalMirroring()
             );
 
-            // Return Cartridge
+            // Carrega os dados no mapper
+            mapper.loadRomData(prgRomData, chrRomData);
+
+            // Retorna o Cartridge
             return new Cartridge(NESFileHeader, prgRomData, chrRomData, trainerData, mapper);
         }
     }
