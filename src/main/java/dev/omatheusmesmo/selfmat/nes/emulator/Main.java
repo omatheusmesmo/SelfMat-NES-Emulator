@@ -13,6 +13,15 @@ public class Main {
             RomLoader loader = new RomLoader();
             ICartridge cart = loader.loadRom(filePath);
 
+            // Exibe informações do header
+            System.out.println("ROM Header Info:");
+            System.out.println("PRG ROM Size: " + cart.NESFileHeader().getPrgRomSize() + "KB");
+            System.out.println("CHR ROM Size: " + cart.NESFileHeader().getChrRomSize() + "KB");
+            System.out.println("Mapper Number: " + cart.NESFileHeader().getMapperNumber());
+            System.out.println("Mirroring: " + (cart.NESFileHeader().isVerticalMirroring() ? "Vertical" : "Horizontal"));
+            System.out.println("Has Battery: " + cart.NESFileHeader().usesBattery());
+            System.out.println("Has Trainer: " + cart.NESFileHeader().hasTrainer());
+
             // Cria o barramento e conecta o cartucho
             Bus bus = new Bus(cart);
 

@@ -8,14 +8,13 @@ import dev.omatheusmesmo.selfmat.nes.emulator.core.rom.mappers.Mapper;
  * that interact with the Cartridge, such as the Bus.
  */
 public interface ICartridge {
+    NESFileHeader NESFileHeader();
+    byte[] prgRomData();
+    byte[] chrRomData();
+    byte[] trainerData();
+
     byte cpuRead(int address);
     void cpuWrite(int address, byte data);
-    
-    // Potentially add other methods like ppuRead, ppuWrite if needed later
-    // NESFileHeader NESFileHeader();
-    // byte[] prgRomData();
-    // byte[] chrRomData();
-    // byte[] trainerData();
 
     // Métodos para o Mapper que a RomLoader irá carregar.
     // Embora Mapper seja abstrato, o Cartridge concreto terá uma instância.
