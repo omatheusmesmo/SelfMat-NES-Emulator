@@ -7,11 +7,23 @@ import java.io.IOException;
 import java.util.ArrayList;
 import java.util.List;
 
+/**
+ * RomLoader is responsible for loading a NES ROM file (.nes) from the filesystem,
+ * parsing its header, extracting PRG and CHR ROM data, and creating a Cartridge object.
+ */
 public class RomLoader {
 
+    /**
+     * Loads a NES ROM from the specified file path.
+     *
+     * @param filePath The path to the .nes file.
+     * @return A fully loaded ICartridge object.
+     * @throws IOException If there's an error reading the file.
+     * @throws IllegalArgumentException If the NES file header is invalid or data is incomplete.
+     */
     public ICartridge loadRom(String filePath) throws IOException {
         try (FileInputStream fis = new FileInputStream(filePath)) {
-            // Read header
+            // Read header (first 16 bytes)
             List<Byte> header = new ArrayList<>();
             for (int i = 0; i < 16; i++) {
                 int byteValue = fis.read();
@@ -26,7 +38,7 @@ public class RomLoader {
                 throw new IllegalArgumentException("Invalid NES file header.");
             }
 
-            // Read Trainer (if present)
+            // Read Trainer (if present, 512 bytes)
             byte[] trainerData = null;
             if (NESFileHeader.hasTrainer()) {
                 trainerData = new byte[512];
@@ -35,28 +47,29 @@ public class RomLoader {
                 }
             }
 
-            // Read PRG ROM
-            int prgRomSize = NESFileHeader.getPrgRomSize() * 1024;
+            // Read PRG ROM (Program ROM)
+            int prgRomSize = NESFileHeader.getPrgRomSize() * 1024; // Size in bytes
             byte[] prgRomData = new byte[prgRomSize];
             if (fis.read(prgRomData) != prgRomSize) {
                 throw new IOException("Unexpected end of file while reading PRG ROM.");
             }
 
-            // Read CHR ROM
-            int chrRomSize = NESFileHeader.getChrRomSize() * 1024;
+            // Read CHR ROM (Character ROM or Pattern Tables)
+            int chrRomSize = NESFileHeader.getChrRomSize() * 1024; // Size in bytes
             byte[] chrRomData = new byte[chrRomSize];
             if (fis.read(chrRomData) != chrRomSize) {
                 throw new IOException("Unexpected end of file while reading CHR ROM.");
             }
 
+            // Create the appropriate Mapper instance
             Mapper mapper = MapperManager.createMapper(
                     NESFileHeader.getMapperNumber(), prgRomSize, chrRomSize, NESFileHeader.isVerticalMirroring()
             );
 
-            // Carrega os dados no mapper
+            // Load ROM data into the mapper
             mapper.loadRomData(prgRomData, chrRomData);
 
-            // Retorna o Cartridge
+            // Return the fully constructed Cartridge
             return new Cartridge(NESFileHeader, prgRomData, chrRomData, trainerData, mapper);
         }
     }
