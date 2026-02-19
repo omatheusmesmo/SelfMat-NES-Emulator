@@ -250,7 +250,10 @@ class BusTest {
         mockCartridge.setCpuReadValue(expectedReadValue);
 
         assertEquals(expectedReadValue, bus.read(firstCartridgeAddress));
+        assertEquals(firstCartridgeAddress, mockCartridge.getLastCpuReadAddress());
+        
         assertEquals(expectedReadValue, bus.read(lastCartridgeAddress));
+        assertEquals(lastCartridgeAddress, mockCartridge.getLastCpuReadAddress());
 
         final byte firstWriteValue = (byte) 0xCD;
         final byte lastWriteValue = (byte) 0xEF;
