@@ -15,6 +15,7 @@ public class Bus {
     private static final int RAM_MIRROR_MASK = 0x07FF; // 0x1FFF & 0x07FF = 0x07FF (last 11 bits)
     private static final int ADDRESS_MASK_16BIT = 0xFFFF;
     private static final int ADDRESS_HIGH_BITS_MASK = 0xF000; // Mask to get the highest 4 bits (for switch cases)
+    private static final int BLOCK_4KB_SIZE = 0x1000; // 4KB block size for switch cases
 
     private static final int PPU_REGISTERS_START = 0x2000;
     private static final int PPU_REGISTERS_END = 0x3FFF; // 8 PPU registers mirrored every 8 bytes
@@ -51,10 +52,10 @@ public class Bus {
         // The cases are based on 4KB blocks (0x1000) for finer grain.
         switch (address & ADDRESS_HIGH_BITS_MASK) { // Check the highest 4 bits (e.g., 0x0000, 0x1000, 0x2000, etc.)
             case RAM_START_ADDRESS: // 0x0000 - 0x0FFF: CPU RAM and its mirror
-            case RAM_START_ADDRESS + 0x1000: // 0x1000 - 0x1FFF: CPU RAM mirror
+            case RAM_START_ADDRESS + BLOCK_4KB_SIZE: // 0x1000 - 0x1FFF: CPU RAM mirror
                 return cpuRam[address & RAM_MIRROR_MASK];
             case PPU_REGISTERS_START: // 0x2000 - 0x2FFF: PPU registers and its mirror
-            case PPU_REGISTERS_START + 0x1000: // 0x3000 - 0x3FFF: PPU mirror
+            case PPU_REGISTERS_START + BLOCK_4KB_SIZE: // 0x3000 - 0x3FFF: PPU mirror
                 // Need to normalize to 0x2000-0x2007 for PPU logic, then apply mirror mask
                 int ppuReadIndex = (address - PPU_REGISTERS_START) & PPU_REGISTERS_MIRROR_MASK;
                 return ppuRegisters[ppuReadIndex];
@@ -85,11 +86,11 @@ public class Bus {
 
         switch (address & ADDRESS_HIGH_BITS_MASK) { // Check the highest 4 bits
             case RAM_START_ADDRESS: // 0x0000 - 0x0FFF: CPU RAM and its mirror
-            case RAM_START_ADDRESS + 0x1000: // 0x1000 - 0x1FFF: CPU RAM mirror
+            case RAM_START_ADDRESS + BLOCK_4KB_SIZE: // 0x1000 - 0x1FFF: CPU RAM mirror
                 cpuRam[address & RAM_MIRROR_MASK] = data;
                 break;
             case PPU_REGISTERS_START: // 0x2000 - 0x2FFF: PPU registers and its mirror
-            case PPU_REGISTERS_START + 0x1000: // 0x3000 - 0x3FFF: PPU mirror
+            case PPU_REGISTERS_START + BLOCK_4KB_SIZE: // 0x3000 - 0x3FFF: PPU mirror
                 int ppuWriteIndex = (address - PPU_REGISTERS_START) & PPU_REGISTERS_MIRROR_MASK;
                 ppuRegisters[ppuWriteIndex] = data;
                 break;
