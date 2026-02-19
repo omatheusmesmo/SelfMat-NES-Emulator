@@ -26,26 +26,6 @@ public record Cartridge(
     }
 
     @Override
-    public NESFileHeader NESFileHeader() {
-        return NESFileHeader;
-    }
-
-    @Override
-    public byte[] prgRomData() {
-        return prgRomData;
-    }
-
-    @Override
-    public byte[] chrRomData() {
-        return chrRomData;
-    }
-
-    @Override
-    public byte[] trainerData() {
-        return trainerData;
-    }
-
-    @Override
     public Mapper getMapper() {
         return mapper;
     }
