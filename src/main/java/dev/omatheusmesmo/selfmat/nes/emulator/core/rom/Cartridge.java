@@ -30,8 +30,16 @@ public record Cartridge(
         return mapper;
     }
 
+    /**
+     * Deprecated: Mapper ROM data is already loaded during cartridge creation.
+     * <p>
+     * This method is intentionally a no-op to avoid reloading the same data
+     * into the mapper, which is handled by the ROM loader before constructing
+     * the {@link Cartridge}.
+     */
+    @Deprecated
     @Override
     public void loadMapperData(byte[] prgRomData, byte[] chrRomData) {
-        mapper.loadRomData(prgRomData, chrRomData);
+        // no-op: mapper ROM data is initialized by the ROM loader
     }
 }
