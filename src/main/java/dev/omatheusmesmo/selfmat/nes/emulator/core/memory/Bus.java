@@ -12,7 +12,7 @@ public class Bus {
     private static final int RAM_START_ADDRESS = 0x0000;
     private static final int RAM_END_ADDRESS = 0x1FFF; // 2KB RAM mirrored 4 times
     private static final int RAM_SIZE = 2048; // 2KB
-    private static final int RAM_MIRROR_MASK = 0x07FF; // 0x1FFF & 0x07FF = 0x07FF (last 11 bits)
+    private static final int RAM_MIRROR_MASK = 0x07FF; // Mask to extract lowest 11 bits, mapping mirrored addresses to 2KB RAM
     private static final int ADDRESS_MASK_16BIT = 0xFFFF;
     private static final int ADDRESS_HIGH_BITS_MASK = 0xF000; // Mask to get the highest 4 bits (for switch cases)
     private static final int BLOCK_4KB_SIZE = 0x1000; // 4KB block size for switch cases
@@ -20,7 +20,7 @@ public class Bus {
     private static final int PPU_REGISTERS_START = 0x2000;
     private static final int PPU_REGISTERS_END = 0x3FFF; // 8 PPU registers mirrored every 8 bytes
     private static final int PPU_REGISTERS_SIZE = 8;
-    private static final int PPU_REGISTERS_MIRROR_MASK = 0x0007; // 0x0007 = 0x0007 (last 3 bits)
+    private static final int PPU_REGISTERS_MIRROR_MASK = 0x0007; // Mask to extract lowest 3 bits, mirroring 8 PPU registers across 0x2000-0x3FFF range
 
     private static final int APU_IO_START_ADDRESS = 0x4000;
     private static final int APU_IO_END_ADDRESS = 0x401F;
@@ -29,8 +29,7 @@ public class Bus {
     private static final int APU_CONTROLLER_1_ADDRESS = 0x4016;
     private static final int APU_CONTROLLER_2_ADDRESS = 0x4017;
 
-    private static final int CARTRIDGE_START_ADDRESS = 0x4020;
-    private static final int CARTRIDGE_END_ADDRESS = 0xFFFF; // Implied, as default case covers this after APU/IO
+    private static final int CARTRIDGE_END_ADDRESS = 0xFFFF; // End of CPU address space (0xFFFF)
 
     private final byte[] cpuRam = new byte[RAM_SIZE];
     private final byte[] ppuRegisters = new byte[PPU_REGISTERS_SIZE];
@@ -38,7 +37,7 @@ public class Bus {
     private final ICartridge cartridge; // Now uses the interface
 
     public Bus(ICartridge cartridge) {
-        this.cartridge = cartridge;
+        this.cartridge = java.util.Objects.requireNonNull(cartridge, "Cartridge cannot be null");
     }
 
     /**
@@ -71,7 +70,7 @@ public class Bus {
                         return apuRegisters[address - APU_IO_START_ADDRESS];
                     }
                 }
-                // Fallthrough to Cartridge if not APU/IO within the 0x4000 block
+                // Addresses 0x4020-0x4FFF fall through to cartridge
             default: // Catches 0x4020 - 0xFFFF (mostly Cartridge space)
                 // Delegate to cartridge for read
                 return cartridge.cpuRead(address);

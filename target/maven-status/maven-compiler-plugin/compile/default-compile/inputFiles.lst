@@ -1,0 +1,16 @@
+/home/runner/work/SelfMat-NES-Emulator/SelfMat-NES-Emulator/src/main/java/dev/omatheusmesmo/selfmat/nes/emulator/core/rom/mappers/factory/NRomFactory.java
+/home/runner/work/SelfMat-NES-Emulator/SelfMat-NES-Emulator/src/main/java/dev/omatheusmesmo/selfmat/nes/emulator/core/rom/mappers/NRomMapper.java
+/home/runner/work/SelfMat-NES-Emulator/SelfMat-NES-Emulator/src/main/java/dev/omatheusmesmo/selfmat/nes/emulator/core/rom/Cartridge.java
+/home/runner/work/SelfMat-NES-Emulator/SelfMat-NES-Emulator/src/main/java/dev/omatheusmesmo/selfmat/nes/emulator/core/rom/MapperManager.java
+/home/runner/work/SelfMat-NES-Emulator/SelfMat-NES-Emulator/src/main/java/dev/omatheusmesmo/selfmat/nes/emulator/core/rom/mappers/factory/MMC1Factory.java
+/home/runner/work/SelfMat-NES-Emulator/SelfMat-NES-Emulator/src/main/java/dev/omatheusmesmo/selfmat/nes/emulator/Main.java
+/home/runner/work/SelfMat-NES-Emulator/SelfMat-NES-Emulator/src/main/java/dev/omatheusmesmo/selfmat/nes/emulator/core/rom/mappers/Mapper.java
+/home/runner/work/SelfMat-NES-Emulator/SelfMat-NES-Emulator/src/main/java/dev/omatheusmesmo/selfmat/nes/emulator/core/rom/mappers/factory/MMC3Factory.java
+/home/runner/work/SelfMat-NES-Emulator/SelfMat-NES-Emulator/src/main/java/dev/omatheusmesmo/selfmat/nes/emulator/core/rom/mappers/factory/MapperFactory.java
+/home/runner/work/SelfMat-NES-Emulator/SelfMat-NES-Emulator/src/main/java/dev/omatheusmesmo/selfmat/nes/emulator/core/memory/Bus.java
+/home/runner/work/SelfMat-NES-Emulator/SelfMat-NES-Emulator/src/main/java/dev/omatheusmesmo/selfmat/nes/emulator/core/rom/RomLoader.java
+/home/runner/work/SelfMat-NES-Emulator/SelfMat-NES-Emulator/src/main/java/dev/omatheusmesmo/selfmat/nes/emulator/core/rom/ICartridge.java
+/home/runner/work/SelfMat-NES-Emulator/SelfMat-NES-Emulator/src/main/java/dev/omatheusmesmo/selfmat/nes/emulator/core/rom/NESFileHeader.java
+/home/runner/work/SelfMat-NES-Emulator/SelfMat-NES-Emulator/src/main/java/dev/omatheusmesmo/selfmat/nes/emulator/core/rom/mappers/MMC3Mapper.java
+/home/runner/work/SelfMat-NES-Emulator/SelfMat-NES-Emulator/src/main/java/dev/omatheusmesmo/selfmat/nes/emulator/core/ppu/MirroringMode.java
+/home/runner/work/SelfMat-NES-Emulator/SelfMat-NES-Emulator/src/main/java/dev/omatheusmesmo/selfmat/nes/emulator/core/rom/mappers/MMC1Mapper.java

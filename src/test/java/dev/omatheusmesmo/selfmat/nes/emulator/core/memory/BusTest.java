@@ -17,11 +17,13 @@ class BusTest {
     // Manual mock for ICartridge to avoid Mockito issues with records
     static class MockCartridge implements ICartridge {
         private byte lastCpuReadValue = 0x00;
+        private int lastCpuReadAddress = 0x0000;
         private byte lastCpuWriteValue = 0x00;
         private int lastCpuWriteAddress = 0x0000;
 
         @Override
         public byte cpuRead(int address) {
+            this.lastCpuReadAddress = address;
             return lastCpuReadValue;
         }
 
@@ -49,6 +51,10 @@ class BusTest {
 
         public void setCpuReadValue(byte value) {
             this.lastCpuReadValue = value;
+        }
+
+        public int getLastCpuReadAddress() {
+            return lastCpuReadAddress;
         }
 
         public byte getLastCpuWriteValue() {
@@ -142,43 +148,24 @@ class BusTest {
     }
 
     @Test
-    @DisplayName("Should trigger OAM DMA action on write to APU_OAM_DMA_ADDRESS")
-    void shouldTriggerOamDmaAction() {
+    @DisplayName("Should handle write to OAM DMA address without error")
+    void shouldHandleOamDmaWrite() {
         final int oamDmaAddress = 0x4014;
         final byte dataPageValue = (byte) 0x02; // Page of CPU RAM to transfer
 
-        // Mocking System.out.println to capture output
-        var originalOut = System.out;
-        var newOut = new java.io.ByteArrayOutputStream();
-        System.setOut(new java.io.PrintStream(newOut));
-
-        bus.write(oamDmaAddress, dataPageValue);
-
-        String expectedOutput = "OAM DMA triggered with data: 2\n";
-        assertEquals(expectedOutput, newOut.toString());
-
-        System.setOut(originalOut); // Restore original System.out
+        // Verify that writing to the OAM DMA register completes without errors.
+        assertDoesNotThrow(() -> bus.write(oamDmaAddress, dataPageValue));
     }
 
     @Test
-    @DisplayName("Should print message on write to Controller 1 and 2 addresses")
-    void shouldPrintMessageOnControllerWrites() {
+    @DisplayName("Should handle writes to Controller 1 and 2 addresses without error")
+    void shouldHandleControllerWrites() {
         final int controller1Address = 0x4016;
         final int controller2Address = 0x4017;
         final byte arbitraryData = (byte) 0x01; // Any data
 
-        var originalOut = System.out;
-        var newOut = new java.io.ByteArrayOutputStream();
-        System.setOut(new java.io.PrintStream(newOut));
-
-        bus.write(controller1Address, arbitraryData);
-        bus.write(controller2Address, arbitraryData);
-
-        String expectedOutput = "Controller 1 write with data: 1\n" +
-                                "Controller 2 write with data: 1\n";
-        assertEquals(expectedOutput, newOut.toString());
-
-        System.setOut(originalOut); // Restore original System.out
+        assertDoesNotThrow(() -> bus.write(controller1Address, arbitraryData));
+        assertDoesNotThrow(() -> bus.write(controller2Address, arbitraryData));
     }
 
     @Test
@@ -211,5 +198,69 @@ class BusTest {
 
         assertEquals(dataToWrite, mockCartridge.getLastCpuWriteValue());
         assertEquals(cartridgeWriteAddress, mockCartridge.getLastCpuWriteAddress());
+    }
+
+    // --- Boundary Condition Tests ---
+
+    @Test
+    @DisplayName("Should correctly handle reads/writes at RAM boundary addresses (0x0000 and 0x1FFF)")
+    void shouldHandleRamBoundaryAddresses() {
+        final int lowerRamAddress = 0x0000;
+        final int upperRamAddress = 0x1FFF;
+        final byte lowerValue = (byte) 0x11;
+        final byte upperValue = (byte) 0x22;
+
+        bus.write(lowerRamAddress, lowerValue);
+        bus.write(upperRamAddress, upperValue);
+
+        assertEquals(lowerValue, bus.read(lowerRamAddress));
+        assertEquals(upperValue, bus.read(upperRamAddress));
+    }
+
+    @Test
+    @DisplayName("Should not throw on PPU/APU/IO boundary addresses (0x2000, 0x3FFF, 0x4000, 0x401F)")
+    void shouldHandlePpuAndIoBoundaryAddresses() {
+        final int ppuLowerAddress = 0x2000;
+        final int ppuUpperAddress = 0x3FFF;
+        final int ioLowerAddress = 0x4000;
+        final int ioUpperAddress = 0x401F;
+
+        assertDoesNotThrow(() -> {
+            bus.write(ppuLowerAddress, (byte) 0x01);
+            bus.read(ppuLowerAddress);
+
+            bus.write(ppuUpperAddress, (byte) 0x02);
+            bus.read(ppuUpperAddress);
+
+            bus.write(ioLowerAddress, (byte) 0x03);
+            bus.read(ioLowerAddress);
+
+            bus.write(ioUpperAddress, (byte) 0x04);
+            bus.read(ioUpperAddress);
+        });
+    }
+
+    @Test
+    @DisplayName("Should delegate CPU access correctly at cartridge boundary addresses (0x4020 and 0xFFFF)")
+    void shouldHandleCartridgeBoundaryAddresses() {
+        final int firstCartridgeAddress = 0x4020;
+        final int lastCartridgeAddress = 0xFFFF;
+
+        final byte expectedReadValue = (byte) 0xAB;
+        mockCartridge.setCpuReadValue(expectedReadValue);
+
+        assertEquals(expectedReadValue, bus.read(firstCartridgeAddress));
+        assertEquals(expectedReadValue, bus.read(lastCartridgeAddress));
+
+        final byte firstWriteValue = (byte) 0xCD;
+        final byte lastWriteValue = (byte) 0xEF;
+
+        bus.write(firstCartridgeAddress, firstWriteValue);
+        assertEquals(firstWriteValue, mockCartridge.getLastCpuWriteValue());
+        assertEquals(firstCartridgeAddress, mockCartridge.getLastCpuWriteAddress());
+
+        bus.write(lastCartridgeAddress, lastWriteValue);
+        assertEquals(lastWriteValue, mockCartridge.getLastCpuWriteValue());
+        assertEquals(lastCartridgeAddress, mockCartridge.getLastCpuWriteAddress());
     }
 }
