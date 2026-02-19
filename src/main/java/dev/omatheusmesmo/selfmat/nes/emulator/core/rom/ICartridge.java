@@ -16,8 +16,8 @@ public interface ICartridge {
     byte cpuRead(int address);
     void cpuWrite(int address, byte data);
 
-    // Métodos para o Mapper que a RomLoader irá carregar.
-    // Embora Mapper seja abstrato, o Cartridge concreto terá uma instância.
+    // Methods for the Mapper that RomLoader will load.
+    // Although Mapper is abstract, the concrete Cartridge will have an instance.
     Mapper getMapper();
     void loadMapperData(byte[] prgRomData, byte[] chrRomData);
 }
