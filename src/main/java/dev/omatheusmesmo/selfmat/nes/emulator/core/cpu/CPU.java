@@ -1,6 +1,9 @@
 package dev.omatheusmesmo.selfmat.nes.emulator.core.cpu;
 
 
+import dev.omatheusmesmo.selfmat.nes.emulator.core.cpu.opcode.AddressingMode;
+import dev.omatheusmesmo.selfmat.nes.emulator.core.cpu.opcode.InstructionMetadata;
+import dev.omatheusmesmo.selfmat.nes.emulator.core.cpu.opcode.Opcodes;
 import dev.omatheusmesmo.selfmat.nes.emulator.core.memory.Bus;
 
 public class CPU {
@@ -13,6 +16,7 @@ public class CPU {
     private int programCounter;
     private int stackPointer;
     private int statusRegister;
+    private int cyclesRemaining;
 
     public static final int CARRY_FLAG          = (1 << 0);
     public static final int ZERO_FLAG           = (1 << 1);
@@ -28,7 +32,7 @@ public class CPU {
     public static final int BYTE_MASK = 0xFF;
     public static final int BITS_PER_BYTE = 8;
     public static final int INITIAL_VALUE = 0;
-
+    public static final int MAX_ADDRESS_VALUE = 0xFFFF;
 
     public CPU(Bus bus) {
         this.bus = bus;
@@ -67,5 +71,29 @@ public class CPU {
 
     private boolean isFlagSet(int flag) {
         return (statusRegister & flag) != INITIAL_VALUE;
+    }
+
+    public void clock() {
+        if (cyclesRemaining == INITIAL_VALUE) {
+            cyclesRemaining = step();
+        }
+        cyclesRemaining--;
+    }
+
+    public int step() {
+        int opcode = fetch() & BYTE_MASK;
+        InstructionMetadata metadata = Opcodes.getInstructionMetadata(opcode);
+
+        if (metadata.addressingMode() == AddressingMode.UNKNOWN) {
+            throw new IllegalStateException(String.format("Unknown opcode: 0x%02X at PC: 0x%04X", opcode, programCounter - 1));
+        }
+
+        return metadata.cycles();
+    }
+
+    public byte fetch() {
+        byte data = read(programCounter);
+        programCounter= (programCounter + 1) & MAX_ADDRESS_VALUE; // Wrap around 16-bit address space
+        return data;
     }
 }
