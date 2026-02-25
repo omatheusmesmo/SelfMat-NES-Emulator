@@ -52,4 +52,6 @@ public final class CpuConstants {
     public static final int SIGNED_BYTE_MAX = 0x7F;
     /** Value used for 8-bit wrap-around calculations (0x100). */
     public static final int BYTE_WRAP = 0x100;
+    /** Sentinel value used to indicate that an instruction should operate on the Accumulator. */
+    public static final int ACCUMULATOR_SENTINEL = -1;
 }
