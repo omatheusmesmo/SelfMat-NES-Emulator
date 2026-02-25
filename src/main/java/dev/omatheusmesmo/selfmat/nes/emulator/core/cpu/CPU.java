@@ -256,7 +256,8 @@ public class CPU {
                 int effectiveHi = read(pointer + 1) & BYTE_MASK;
                 yield (effectiveHi << BITS_PER_BYTE) | effectiveLo;
             }
-            // IMPLIED, ACCUMULATOR modes are handled by the instruction logic and do not require an operand address.
+            case ACCUMULATOR -> ACCUMULATOR_SENTINEL;
+            // IMPLIED mode is handled by the instruction logic and does not require an operand address.
             default -> INITIAL_VALUE;
         };
     }
