@@ -225,6 +225,174 @@ public class CpuInstructionSet {
         cpu.setFlag(BREAK_COMMAND, false); // B flag does not physically exist in the register
     }
 
+    // Handle Processor Flags
+
+    public void clc(int operandAddress) {
+        cpu.setFlag(CARRY_FLAG, false);
+    }
+
+    public void sec(int operandAddress) {
+        cpu.setFlag(CARRY_FLAG, true);
+    }
+
+    public void cld(int operandAddress) {
+        cpu.setFlag(DECIMAL_MODE, false);
+    }
+
+    public void sed(int operandAddress) {
+        cpu.setFlag(DECIMAL_MODE, true);
+    }
+
+    public void cli(int operandAddress) {
+        cpu.setFlag(INTERRUPT_DISABLE, false);
+    }
+
+    public void sei(int operandAddress) {
+        cpu.setFlag(INTERRUPT_DISABLE, true);
+    }
+
+    public void clv(int operandAddress) {
+        cpu.setFlag(OVERFLOW_FLAG, false);
+    }
+
+    public void cmp(int operandAddress) {
+        int fetched = cpu.read(operandAddress) & BYTE_MASK;
+        int result = cpu.accumulator - fetched;
+
+        // Set flags based on the comparison
+        cpu.setFlag(CARRY_FLAG, cpu.accumulator >= fetched);
+        updateNegativeAndZeroFlags(result);
+    }
+
+    public void cpx(int operandAddress) {
+        int fetched = cpu.read(operandAddress) & BYTE_MASK;
+        int result = cpu.indexX - fetched;
+
+        // Set flags based on the comparison
+        cpu.setFlag(CARRY_FLAG, cpu.indexX >= fetched);
+        updateNegativeAndZeroFlags(result);
+    }
+
+    public void cpy(int operandAddress) {
+        int fetched = cpu.read(operandAddress) & BYTE_MASK;
+        int result = cpu.indexY - fetched;
+
+        // Set flags based on the comparison
+        cpu.setFlag(CARRY_FLAG, cpu.indexY >= fetched);
+        updateNegativeAndZeroFlags(result);
+    }
+
+    public void tax(int operandAddress) {
+        cpu.indexX = cpu.accumulator;
+        updateNegativeAndZeroFlags(cpu.indexX);
+    }
+
+    public void tay(int operandAddress) {
+        cpu.indexY = cpu.accumulator;
+        updateNegativeAndZeroFlags(cpu.indexY);
+    }
+
+    public void tsx(int operandAddress) {
+        cpu.indexX = cpu.stackPointer;
+        updateNegativeAndZeroFlags(cpu.indexX);
+    }
+
+    public void txa(int operandAddress) {
+        cpu.accumulator = cpu.indexX;
+        updateNegativeAndZeroFlags(cpu.accumulator);
+    }
+
+    public void tya(int operandAddress) {
+        cpu.accumulator = cpu.indexY;
+        updateNegativeAndZeroFlags(cpu.accumulator);
+    }
+
+    public void txs(int operandAddress) {
+        cpu.stackPointer = cpu.indexX;
+    }
+
+    public void bit(int operandAddress) {
+        int value = cpu.read(operandAddress) & BYTE_MASK;
+        cpu.setFlag(NEGATIVE_FLAG, (value & 0x80) != INITIAL_VALUE);
+        cpu.setFlag(OVERFLOW_FLAG, (value & 0x40) != INITIAL_VALUE); // V flag is bit 6 of the operand
+        cpu.setFlag(ZERO_FLAG, (cpu.accumulator & value) == INITIAL_VALUE);
+    }
+
+    public void asl(int operandAddress) {
+        if (operandAddress == ACCUMULATOR_SENTINEL) {
+            cpu.setFlag(CARRY_FLAG, (cpu.accumulator & 0x80) != INITIAL_VALUE);
+            cpu.accumulator = (cpu.accumulator << 1) & BYTE_MASK;
+            updateNegativeAndZeroFlags(cpu.accumulator);
+        } else {
+            int value = cpu.read(operandAddress) & BYTE_MASK;
+            cpu.setFlag(CARRY_FLAG, (value & 0x80) != INITIAL_VALUE);
+            value = (value << 1) & BYTE_MASK;
+            cpu.write(operandAddress, (byte) value);
+            updateNegativeAndZeroFlags(value);
+        }
+    }
+
+    public void lsr(int operandAddress) {
+        if (operandAddress == ACCUMULATOR_SENTINEL) {
+            cpu.setFlag(CARRY_FLAG, (cpu.accumulator & 0x01) != INITIAL_VALUE);
+            cpu.accumulator = (cpu.accumulator >> 1) & BYTE_MASK;
+            updateNegativeAndZeroFlags(cpu.accumulator);
+        } else {
+            int value = cpu.read(operandAddress) & BYTE_MASK;
+            cpu.setFlag(CARRY_FLAG, (value & 0x01) != INITIAL_VALUE);
+            value = (value >> 1) & BYTE_MASK;
+            cpu.write(operandAddress, (byte) value);
+            updateNegativeAndZeroFlags(value);
+        }
+    }
+
+    public void rol(int operandAddress) {
+        boolean oldCarry = cpu.isFlagSet(CARRY_FLAG);
+        if (operandAddress == ACCUMULATOR_SENTINEL) {
+            cpu.setFlag(CARRY_FLAG, (cpu.accumulator & 0x80) != INITIAL_VALUE);
+            cpu.accumulator = ((cpu.accumulator << 1) | (oldCarry ? 1 : 0)) & BYTE_MASK;
+            updateNegativeAndZeroFlags(cpu.accumulator);
+        } else {
+            int value = cpu.read(operandAddress) & BYTE_MASK;
+            cpu.setFlag(CARRY_FLAG, (value & 0x80) != INITIAL_VALUE);
+            value = ((value << 1) | (oldCarry ? 1 : 0)) & BYTE_MASK;
+            cpu.write(operandAddress, (byte) value);
+            updateNegativeAndZeroFlags(value);
+        }
+    }
+
+    public void ror(int operandAddress) {
+        boolean oldCarry = cpu.isFlagSet(CARRY_FLAG);
+        if (operandAddress == ACCUMULATOR_SENTINEL) {
+            cpu.setFlag(CARRY_FLAG, (cpu.accumulator & 0x01) != INITIAL_VALUE);
+            cpu.accumulator = ((cpu.accumulator >> 1) | (oldCarry ? 0x80 : 0)) & BYTE_MASK;
+            updateNegativeAndZeroFlags(cpu.accumulator);
+        } else {
+            int value = cpu.read(operandAddress) & BYTE_MASK;
+            cpu.setFlag(CARRY_FLAG, (value & 0x01) != INITIAL_VALUE);
+            value = ((value >> 1) | (oldCarry ? 0x80 : 0)) & BYTE_MASK;
+            cpu.write(operandAddress, (byte) value);
+            updateNegativeAndZeroFlags(value);
+        }
+    }
+
+    public void rti(int operandAddress) {
+        // Pull Status first (but ignore B and U bits)
+        int pulledStatus = cpu.pop() & BYTE_MASK;
+        cpu.statusRegister = pulledStatus;
+        cpu.setFlag(UNUSED_FLAG, true);
+        cpu.setFlag(BREAK_COMMAND, false); // B flag does not physically exist in the register
+
+        // Then pull PC (Low then High)
+        int lo = cpu.pop() & BYTE_MASK;
+        int hi = cpu.pop() & BYTE_MASK;
+        cpu.programCounter = (hi << BITS_PER_BYTE) | lo;
+    }
+
+    public void nop(int operandAddress) {
+        // No operation - do nothing
+    }
+
     // --- Dispatching Logic ---
 
     /**
@@ -266,6 +434,43 @@ public class CpuInstructionSet {
         instructionExecutors.put("PLA", this::pla);
         instructionExecutors.put("PHP", this::php);
         instructionExecutors.put("PLP", this::plp);
+
+        // Status Flag Changes
+        instructionExecutors.put("CLC", this::clc);
+        instructionExecutors.put("SEC", this::sec);
+        instructionExecutors.put("CLD", this::cld);
+        instructionExecutors.put("SED", this::sed);
+        instructionExecutors.put("CLI", this::cli);
+        instructionExecutors.put("SEI", this::sei);
+        instructionExecutors.put("CLV", this::clv);
+
+        // Comparisons
+        instructionExecutors.put("CMP", this::cmp);
+        instructionExecutors.put("CPX", this::cpx);
+        instructionExecutors.put("CPY", this::cpy);
+
+        // Register Transfers
+        instructionExecutors.put("TAX", this::tax);
+        instructionExecutors.put("TAY", this::tay);
+        instructionExecutors.put("TSX", this::tsx);
+        instructionExecutors.put("TXA", this::txa);
+        instructionExecutors.put("TYA", this::tya);
+        instructionExecutors.put("TXS", this::txs);
+
+        // Bit Test
+        instructionExecutors.put("BIT", this::bit);
+
+        // Shifts and Rotates
+        instructionExecutors.put("ASL", this::asl);
+        instructionExecutors.put("LSR", this::lsr);
+        instructionExecutors.put("ROL", this::rol);
+        instructionExecutors.put("ROR", this::ror);
+
+        // Return from Interrupt
+        instructionExecutors.put("RTI", this::rti);
+
+        // No Operation
+        instructionExecutors.put("NOP", this::nop);
     }
 
     /**
