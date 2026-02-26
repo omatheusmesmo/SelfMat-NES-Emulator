@@ -150,7 +150,7 @@ public class CPU {
      * @param data The byte to push onto the stack.
      */
     void push(byte data) { // Package-private for CpuInstructionSet
-        write(0x0100 + stackPointer, data);
+        write(STACK_PAGE_START + stackPointer, data);
         stackPointer = (stackPointer - 1) & BYTE_MASK;
     }
 
@@ -172,7 +172,7 @@ public class CPU {
      */
     byte pop() { // Package-private for CpuInstructionSet
         stackPointer = (stackPointer + 1) & BYTE_MASK;
-        return read(0x0100 + stackPointer);
+        return read(STACK_PAGE_START + stackPointer);
     }
 
     /**

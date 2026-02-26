@@ -160,8 +160,8 @@ public class CpuInstructionSet {
         cpu.setFlag(INTERRUPT_DISABLE, true);
         
         // Load Interrupt Vector (0xFFFE/F)
-        int lo = cpu.read(0xFFFE) & BYTE_MASK;
-        int hi = cpu.read(0xFFFF) & BYTE_MASK;
+        int lo = cpu.read(INTERRUPT_VECTOR_LOW) & BYTE_MASK;
+        int hi = cpu.read(INTERRUPT_VECTOR_HIGH) & BYTE_MASK;
         cpu.programCounter = (hi << BITS_PER_BYTE) | lo;
     }
 
@@ -313,19 +313,19 @@ public class CpuInstructionSet {
 
     public void bit(int operandAddress) {
         int value = cpu.read(operandAddress) & BYTE_MASK;
-        cpu.setFlag(NEGATIVE_FLAG, (value & 0x80) != INITIAL_VALUE);
-        cpu.setFlag(OVERFLOW_FLAG, (value & 0x40) != INITIAL_VALUE); // V flag is bit 6 of the operand
+        cpu.setFlag(NEGATIVE_FLAG, (value & NEGATIVE_FLAG) != INITIAL_VALUE);
+        cpu.setFlag(OVERFLOW_FLAG, (value & OVERFLOW_FLAG) != INITIAL_VALUE); // V flag is bit 6 of the operand
         cpu.setFlag(ZERO_FLAG, (cpu.accumulator & value) == INITIAL_VALUE);
     }
 
     public void asl(int operandAddress) {
         if (operandAddress == ACCUMULATOR_SENTINEL) {
-            cpu.setFlag(CARRY_FLAG, (cpu.accumulator & 0x80) != INITIAL_VALUE);
+            cpu.setFlag(CARRY_FLAG, (cpu.accumulator & NEGATIVE_FLAG) != INITIAL_VALUE);
             cpu.accumulator = (cpu.accumulator << 1) & BYTE_MASK;
             updateNegativeAndZeroFlags(cpu.accumulator);
         } else {
             int value = cpu.read(operandAddress) & BYTE_MASK;
-            cpu.setFlag(CARRY_FLAG, (value & 0x80) != INITIAL_VALUE);
+            cpu.setFlag(CARRY_FLAG, (value & NEGATIVE_FLAG) != INITIAL_VALUE);
             value = (value << 1) & BYTE_MASK;
             cpu.write(operandAddress, (byte) value);
             updateNegativeAndZeroFlags(value);
@@ -334,12 +334,12 @@ public class CpuInstructionSet {
 
     public void lsr(int operandAddress) {
         if (operandAddress == ACCUMULATOR_SENTINEL) {
-            cpu.setFlag(CARRY_FLAG, (cpu.accumulator & 0x01) != INITIAL_VALUE);
+            cpu.setFlag(CARRY_FLAG, (cpu.accumulator & CARRY_FLAG) != INITIAL_VALUE);
             cpu.accumulator = (cpu.accumulator >> 1) & BYTE_MASK;
             updateNegativeAndZeroFlags(cpu.accumulator);
         } else {
             int value = cpu.read(operandAddress) & BYTE_MASK;
-            cpu.setFlag(CARRY_FLAG, (value & 0x01) != INITIAL_VALUE);
+            cpu.setFlag(CARRY_FLAG, (value & CARRY_FLAG) != INITIAL_VALUE);
             value = (value >> 1) & BYTE_MASK;
             cpu.write(operandAddress, (byte) value);
             updateNegativeAndZeroFlags(value);
@@ -349,12 +349,12 @@ public class CpuInstructionSet {
     public void rol(int operandAddress) {
         boolean oldCarry = cpu.isFlagSet(CARRY_FLAG);
         if (operandAddress == ACCUMULATOR_SENTINEL) {
-            cpu.setFlag(CARRY_FLAG, (cpu.accumulator & 0x80) != INITIAL_VALUE);
+            cpu.setFlag(CARRY_FLAG, (cpu.accumulator & NEGATIVE_FLAG) != INITIAL_VALUE);
             cpu.accumulator = ((cpu.accumulator << 1) | (oldCarry ? 1 : 0)) & BYTE_MASK;
             updateNegativeAndZeroFlags(cpu.accumulator);
         } else {
             int value = cpu.read(operandAddress) & BYTE_MASK;
-            cpu.setFlag(CARRY_FLAG, (value & 0x80) != INITIAL_VALUE);
+            cpu.setFlag(CARRY_FLAG, (value & NEGATIVE_FLAG) != INITIAL_VALUE);
             value = ((value << 1) | (oldCarry ? 1 : 0)) & BYTE_MASK;
             cpu.write(operandAddress, (byte) value);
             updateNegativeAndZeroFlags(value);
@@ -364,13 +364,13 @@ public class CpuInstructionSet {
     public void ror(int operandAddress) {
         boolean oldCarry = cpu.isFlagSet(CARRY_FLAG);
         if (operandAddress == ACCUMULATOR_SENTINEL) {
-            cpu.setFlag(CARRY_FLAG, (cpu.accumulator & 0x01) != INITIAL_VALUE);
-            cpu.accumulator = ((cpu.accumulator >> 1) | (oldCarry ? 0x80 : 0)) & BYTE_MASK;
+            cpu.setFlag(CARRY_FLAG, (cpu.accumulator & CARRY_FLAG) != INITIAL_VALUE);
+            cpu.accumulator = ((cpu.accumulator >> 1) | (oldCarry ? NEGATIVE_FLAG : 0)) & BYTE_MASK;
             updateNegativeAndZeroFlags(cpu.accumulator);
         } else {
             int value = cpu.read(operandAddress) & BYTE_MASK;
-            cpu.setFlag(CARRY_FLAG, (value & 0x01) != INITIAL_VALUE);
-            value = ((value >> 1) | (oldCarry ? 0x80 : 0)) & BYTE_MASK;
+            cpu.setFlag(CARRY_FLAG, (value & CARRY_FLAG) != INITIAL_VALUE);
+            value = ((value >> 1) | (oldCarry ? NEGATIVE_FLAG : 0)) & BYTE_MASK;
             cpu.write(operandAddress, (byte) value);
             updateNegativeAndZeroFlags(value);
         }

@@ -36,8 +36,14 @@ public final class CpuConstants {
     public static final int RESET_VECTOR_LOW = 0xFFFC;
     /** High byte address for the Reset Vector (0xFFFD). */
     public static final int RESET_VECTOR_HIGH = 0xFFFD;
+    /** Low byte address for the Interrupt/BRK Vector (0xFFFE). */
+    public static final int INTERRUPT_VECTOR_LOW = 0xFFFE;
+    /** High byte address for the Interrupt/BRK Vector (0xFFFF). */
+    public static final int INTERRUPT_VECTOR_HIGH = 0xFFFF;
     /** Initial value for the Stack Pointer on reset (0xFD). */
     public static final int INITIAL_STACK_POINTER = 0xFD;
+    /** Memory address where the stack page starts (Page 1). */
+    public static final int STACK_PAGE_START = 0x0100;
 
     // --- General Bitwise and Value Constants ---
     /** Mask for extracting the lowest 8 bits (to simulate unsigned byte). */
