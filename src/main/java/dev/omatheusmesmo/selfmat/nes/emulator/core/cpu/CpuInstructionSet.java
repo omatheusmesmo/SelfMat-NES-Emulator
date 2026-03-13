@@ -1,9 +1,6 @@
 package dev.omatheusmesmo.selfmat.nes.emulator.core.cpu;
 
-import dev.omatheusmesmo.selfmat.nes.emulator.core.cpu.opcode.InstructionExecutor;
-import dev.omatheusmesmo.selfmat.nes.emulator.core.cpu.opcode.InstructionMetadata;
-import dev.omatheusmesmo.selfmat.nes.emulator.core.cpu.opcode.Opcodes; // Needed for InstructionMetadata to reference Opcodes.getInstructionMetadata
-import dev.omatheusmesmo.selfmat.nes.emulator.core.cpu.opcode.AddressingMode; // Needed for InstructionMetadata.addressingMode()
+import dev.omatheusmesmo.selfmat.nes.emulator.core.cpu.opcode.*;
 
 import java.util.HashMap;
 import java.util.Map;
@@ -28,6 +25,22 @@ public class CpuInstructionSet {
     public CpuInstructionSet(CPU cpu) {
         this.cpu = cpu;
         setupInstructionExecutors(); // Initialize the instruction dispatch map
+    }
+
+    /**
+     * Executes the instruction defined by the metadata.
+     * Dispatches the call to the appropriate instruction implementation based on the mnemonic.
+     * @param metadata The InstructionMetadata containing the mnemonic.
+     * @param operand The resolved operand containing address and page crossing info.
+     * @return The number of additional CPU cycles consumed.
+     * @throws IllegalStateException if an executor for the mnemonic is not found.
+     */
+    public int execute(InstructionMetadata metadata, Operand operand) {
+        InstructionExecutor executor = instructionExecutors.get(metadata.mnemonic());
+        if (executor == null) {
+            throw new IllegalStateException("Executor not found for instruction: " + metadata.mnemonic());
+        }
+        return executor.execute(operand);
     }
 
     /**
@@ -70,86 +83,101 @@ public class CpuInstructionSet {
 
     // --- Load and Store ---
 
-    public void lda(int operandAddress) {
-        cpu.accumulator = cpu.read(operandAddress) & BYTE_MASK;
+    public int lda(Operand op) {
+        cpu.accumulator = cpu.read(op.address()) & BYTE_MASK;
         updateNegativeAndZeroFlags(cpu.accumulator);
+        return op.pageCrossed() ? 1 : 0; // LDA gains 1 cycle if page is crossed
     }
 
-    public void ldx(int operandAddress) {
-        cpu.indexX = cpu.read(operandAddress) & BYTE_MASK;
+    public int ldx(Operand op) {
+        cpu.indexX = cpu.read(op.address()) & BYTE_MASK;
         updateNegativeAndZeroFlags(cpu.indexX);
+        return op.pageCrossed() ? 1 : 0;
     }
 
-    public void ldy(int operandAddress) {
-        cpu.indexY = cpu.read(operandAddress) & BYTE_MASK;
+    public int ldy(Operand op) {
+        cpu.indexY = cpu.read(op.address()) & BYTE_MASK;
         updateNegativeAndZeroFlags(cpu.indexY);
+        return op.pageCrossed() ? 1 : 0;
     }
 
-    public void sta(int operandAddress) {
-        cpu.write(operandAddress, (byte) (cpu.accumulator & BYTE_MASK));
+    public int sta(Operand op) {
+        cpu.write(op.address(), (byte) (cpu.accumulator & BYTE_MASK));
+        return 0; // STA never adds cycles for page crossing in indexed modes
     }
 
-    public void stx(int operandAddress) {
-        cpu.write(operandAddress, (byte) (cpu.indexX & BYTE_MASK));
+    public int stx(Operand op) {
+        cpu.write(op.address(), (byte) (cpu.indexX & BYTE_MASK));
+        return 0;
     }
 
-    public void sty(int operandAddress) {
-        cpu.write(operandAddress, (byte) (cpu.indexY & BYTE_MASK));
+    public int sty(Operand op) {
+        cpu.write(op.address(), (byte) (cpu.indexY & BYTE_MASK));
+        return 0;
     }
 
     // --- Increment and Decrement ---
 
-    public void inx(int operandAddress) {
+    public int inx(Operand op) {
         cpu.indexX = (cpu.indexX + 1) & BYTE_MASK;
         updateNegativeAndZeroFlags(cpu.indexX);
+        return 0;
     }
 
-    public void dex(int operandAddress) {
+    public int dex(Operand op) {
         cpu.indexX = (cpu.indexX - 1) & BYTE_MASK;
         updateNegativeAndZeroFlags(cpu.indexX);
+        return 0;
     }
 
-    public void iny(int operandAddress) {
+    public int iny(Operand op) {
         cpu.indexY = (cpu.indexY + 1) & BYTE_MASK;
         updateNegativeAndZeroFlags(cpu.indexY);
+        return 0;
     }
 
-    public void dey(int operandAddress) {
+    public int dey(Operand op) {
         cpu.indexY = (cpu.indexY - 1) & BYTE_MASK;
         updateNegativeAndZeroFlags(cpu.indexY);
+        return 0;
     }
 
-    public void inc(int operandAddress) {
-        int value = (cpu.read(operandAddress) + 1) & BYTE_MASK;
-        cpu.write(operandAddress, (byte) value);
+    public int inc(Operand op) {
+        int value = (cpu.read(op.address()) + 1) & BYTE_MASK;
+        cpu.write(op.address(), (byte) value);
         updateNegativeAndZeroFlags(value);
+        return 0;
     }
 
-    public void dec(int operandAddress) {
-        int value = (cpu.read(operandAddress) - 1) & BYTE_MASK;
-        cpu.write(operandAddress, (byte) value);
+    public int dec(Operand op) {
+        int value = (cpu.read(op.address()) - 1) & BYTE_MASK;
+        cpu.write(op.address(), (byte) value);
         updateNegativeAndZeroFlags(value);
+        return 0;
     }
 
     // --- Branches and Jumps ---
 
-    public void jmp(int operandAddress) {
-        cpu.programCounter = operandAddress;
+    public int jmp(Operand op) {
+        cpu.programCounter = op.address();
+        return 0;
     }
 
-    public void jsr(int operandAddress) {
+    public int jsr(Operand op) {
         // Push PC-1 (High then Low)
         int returnAddr = cpu.programCounter - 1;
         cpu.pushAddress(returnAddr); 
-        cpu.programCounter = operandAddress;
+        cpu.programCounter = op.address();
+        return 0;
     }
 
-    public void rts(int operandAddress) {
+    public int rts(Operand op) {
         int returnAddr = cpu.popAddress();
         cpu.programCounter = returnAddr + 1;
+        return 0;
     }
 
-    public void brk(int operandAddress) {
+    public int brk(Operand op) {
         // Push PC+1 (High then Low)
         // BRK is a 2-byte instruction (usually padding byte after opcode), PC has already advanced by 1 in fetch
         cpu.pushAddress(cpu.programCounter); 
@@ -163,220 +191,251 @@ public class CpuInstructionSet {
         int lo = cpu.read(INTERRUPT_VECTOR_LOW) & BYTE_MASK;
         int hi = cpu.read(INTERRUPT_VECTOR_HIGH) & BYTE_MASK;
         cpu.programCounter = (hi << BITS_PER_BYTE) | lo;
+        return 0;
     }
 
     // --- Arithmetic and Logic ---
 
-    public void adc(int operandAddress) {
-        int fetched = cpu.read(operandAddress) & BYTE_MASK;
+    public int adc(Operand op) {
+        int fetched = cpu.read(op.address()) & BYTE_MASK;
         int sum = cpu.accumulator + fetched + (cpu.isFlagSet(CARRY_FLAG) ? 1 : 0);
         
         updateArithmeticFlags(sum, cpu.accumulator, fetched, false);
         cpu.accumulator = sum & BYTE_MASK;
+        return op.pageCrossed() ? 1 : 0;
     }
 
-    public void sbc(int operandAddress) {
-        int fetched = cpu.read(operandAddress) & BYTE_MASK;
+    public int sbc(Operand op) {
+        int fetched = cpu.read(op.address()) & BYTE_MASK;
         // SBC is A - M - (1 - C) -> A + (-M - 1) + C -> A + ~M + C
         int inverted = fetched ^ BYTE_MASK;
         int sum = cpu.accumulator + inverted + (cpu.isFlagSet(CARRY_FLAG) ? 1 : 0);
         
         updateArithmeticFlags(sum, cpu.accumulator, fetched, true);
         cpu.accumulator = sum & BYTE_MASK;
+        return op.pageCrossed() ? 1 : 0;
     }
 
-    public void and(int operandAddress) {
-        cpu.accumulator &= cpu.read(operandAddress) & BYTE_MASK;
+    public int and(Operand op) {
+        cpu.accumulator &= cpu.read(op.address()) & BYTE_MASK;
         updateNegativeAndZeroFlags(cpu.accumulator);
+        return op.pageCrossed() ? 1 : 0;
     }
 
-    public void ora(int operandAddress) {
-        cpu.accumulator |= cpu.read(operandAddress) & BYTE_MASK;
+    public int ora(Operand op) {
+        cpu.accumulator |= cpu.read(op.address()) & BYTE_MASK;
         updateNegativeAndZeroFlags(cpu.accumulator);
+        return op.pageCrossed() ? 1 : 0;
     }
 
-    public void eor(int operandAddress) {
-        cpu.accumulator ^= cpu.read(operandAddress) & BYTE_MASK;
+    public int eor(Operand op) {
+        cpu.accumulator ^= cpu.read(op.address()) & BYTE_MASK;
         updateNegativeAndZeroFlags(cpu.accumulator);
+        return op.pageCrossed() ? 1 : 0;
     }
 
     // --- Stack Operations ---
 
-    public void pha(int operandAddress) {
+    public int pha(Operand op) {
         cpu.push((byte) cpu.accumulator);
+        return 0;
     }
 
-    public void pla(int operandAddress) {
+    public int pla(Operand op) {
         cpu.accumulator = cpu.pop() & BYTE_MASK;
         updateNegativeAndZeroFlags(cpu.accumulator);
+        return 0;
     }
 
-    public void php(int operandAddress) {
+    public int php(Operand op) {
         // PHP always pushes with Break (B) and Unused (U) flags set
         cpu.push((byte) (cpu.statusRegister | BREAK_COMMAND | UNUSED_FLAG));
+        return 0;
     }
 
-    public void plp(int operandAddress) {
+    public int plp(Operand op) {
         // Pull into status, but ignore Unused (U) and Break (B) bits from stack
         // U is always 1, B usually ignored/cleared in register
         int pulled = cpu.pop() & BYTE_MASK;
         cpu.statusRegister = pulled;
         cpu.setFlag(UNUSED_FLAG, true);
         cpu.setFlag(BREAK_COMMAND, false); // B flag does not physically exist in the register
+        return 0;
     }
 
     // Handle Processor Flags
 
-    public void clc(int operandAddress) {
+    public int clc(Operand op) {
         cpu.setFlag(CARRY_FLAG, false);
+        return 0;
     }
 
-    public void sec(int operandAddress) {
+    public int sec(Operand op) {
         cpu.setFlag(CARRY_FLAG, true);
+        return 0;
     }
 
-    public void cld(int operandAddress) {
+    public int cld(Operand op) {
         cpu.setFlag(DECIMAL_MODE, false);
+        return 0;
     }
 
-    public void sed(int operandAddress) {
+    public int sed(Operand op) {
         cpu.setFlag(DECIMAL_MODE, true);
+        return 0;
     }
 
-    public void cli(int operandAddress) {
+    public int cli(Operand op) {
         cpu.setFlag(INTERRUPT_DISABLE, false);
+        return 0;
     }
 
-    public void sei(int operandAddress) {
+    public int sei(Operand op) {
         cpu.setFlag(INTERRUPT_DISABLE, true);
+        return 0;
     }
 
-    public void clv(int operandAddress) {
+    public int clv(Operand op) {
         cpu.setFlag(OVERFLOW_FLAG, false);
+        return 0;
     }
 
-    public void cmp(int operandAddress) {
-        int fetched = cpu.read(operandAddress) & BYTE_MASK;
+    public int cmp(Operand op) {
+        int fetched = cpu.read(op.address()) & BYTE_MASK;
         int result = cpu.accumulator - fetched;
 
         // Set flags based on the comparison
         cpu.setFlag(CARRY_FLAG, cpu.accumulator >= fetched);
         updateNegativeAndZeroFlags(result);
+        return op.pageCrossed() ? 1 : 0;
     }
 
-    public void cpx(int operandAddress) {
-        int fetched = cpu.read(operandAddress) & BYTE_MASK;
+    public int cpx(Operand op) {
+        int fetched = cpu.read(op.address()) & BYTE_MASK;
         int result = cpu.indexX - fetched;
 
         // Set flags based on the comparison
         cpu.setFlag(CARRY_FLAG, cpu.indexX >= fetched);
         updateNegativeAndZeroFlags(result);
+        return 0;
     }
 
-    public void cpy(int operandAddress) {
-        int fetched = cpu.read(operandAddress) & BYTE_MASK;
+    public int cpy(Operand op) {
+        int fetched = cpu.read(op.address()) & BYTE_MASK;
         int result = cpu.indexY - fetched;
 
         // Set flags based on the comparison
         cpu.setFlag(CARRY_FLAG, cpu.indexY >= fetched);
         updateNegativeAndZeroFlags(result);
+        return 0;
     }
 
-    public void tax(int operandAddress) {
+    public int tax(Operand op) {
         cpu.indexX = cpu.accumulator;
         updateNegativeAndZeroFlags(cpu.indexX);
+        return 0;
     }
 
-    public void tay(int operandAddress) {
+    public int tay(Operand op) {
         cpu.indexY = cpu.accumulator;
         updateNegativeAndZeroFlags(cpu.indexY);
+        return 0;
     }
 
-    public void tsx(int operandAddress) {
+    public int tsx(Operand op) {
         cpu.indexX = cpu.stackPointer;
         updateNegativeAndZeroFlags(cpu.indexX);
+        return 0;
     }
 
-    public void txa(int operandAddress) {
+    public int txa(Operand op) {
         cpu.accumulator = cpu.indexX;
         updateNegativeAndZeroFlags(cpu.accumulator);
+        return 0;
     }
 
-    public void tya(int operandAddress) {
+    public int tya(Operand op) {
         cpu.accumulator = cpu.indexY;
         updateNegativeAndZeroFlags(cpu.accumulator);
+        return 0;
     }
 
-    public void txs(int operandAddress) {
+    public int txs(Operand op) {
         cpu.stackPointer = cpu.indexX;
+        return 0;
     }
 
-    public void bit(int operandAddress) {
-        int value = cpu.read(operandAddress) & BYTE_MASK;
+    public int bit(Operand op) {
+        int value = cpu.read(op.address()) & BYTE_MASK;
         cpu.setFlag(NEGATIVE_FLAG, (value & NEGATIVE_FLAG) != INITIAL_VALUE);
         cpu.setFlag(OVERFLOW_FLAG, (value & OVERFLOW_FLAG) != INITIAL_VALUE); // V flag is bit 6 of the operand
         cpu.setFlag(ZERO_FLAG, (cpu.accumulator & value) == INITIAL_VALUE);
+        return 0;
     }
 
-    public void asl(int operandAddress) {
-        if (operandAddress == ACCUMULATOR_SENTINEL) {
+    public int asl(Operand op) {
+        if (op.address() == ACCUMULATOR_SENTINEL) {
             cpu.setFlag(CARRY_FLAG, (cpu.accumulator & NEGATIVE_FLAG) != INITIAL_VALUE);
             cpu.accumulator = (cpu.accumulator << 1) & BYTE_MASK;
             updateNegativeAndZeroFlags(cpu.accumulator);
         } else {
-            int value = cpu.read(operandAddress) & BYTE_MASK;
+            int value = cpu.read(op.address()) & BYTE_MASK;
             cpu.setFlag(CARRY_FLAG, (value & NEGATIVE_FLAG) != INITIAL_VALUE);
             value = (value << 1) & BYTE_MASK;
-            cpu.write(operandAddress, (byte) value);
+            cpu.write(op.address(), (byte) value);
             updateNegativeAndZeroFlags(value);
         }
+        return 0;
     }
 
-    public void lsr(int operandAddress) {
-        if (operandAddress == ACCUMULATOR_SENTINEL) {
+    public int lsr(Operand op) {
+        if (op.address() == ACCUMULATOR_SENTINEL) {
             cpu.setFlag(CARRY_FLAG, (cpu.accumulator & CARRY_FLAG) != INITIAL_VALUE);
             cpu.accumulator = (cpu.accumulator >> 1) & BYTE_MASK;
             updateNegativeAndZeroFlags(cpu.accumulator);
         } else {
-            int value = cpu.read(operandAddress) & BYTE_MASK;
+            int value = cpu.read(op.address()) & BYTE_MASK;
             cpu.setFlag(CARRY_FLAG, (value & CARRY_FLAG) != INITIAL_VALUE);
             value = (value >> 1) & BYTE_MASK;
-            cpu.write(operandAddress, (byte) value);
+            cpu.write(op.address(), (byte) value);
             updateNegativeAndZeroFlags(value);
         }
+        return 0;
     }
 
-    public void rol(int operandAddress) {
+    public int rol(Operand op) {
         boolean oldCarry = cpu.isFlagSet(CARRY_FLAG);
-        if (operandAddress == ACCUMULATOR_SENTINEL) {
+        if (op.address() == ACCUMULATOR_SENTINEL) {
             cpu.setFlag(CARRY_FLAG, (cpu.accumulator & NEGATIVE_FLAG) != INITIAL_VALUE);
             cpu.accumulator = ((cpu.accumulator << 1) | (oldCarry ? 1 : 0)) & BYTE_MASK;
             updateNegativeAndZeroFlags(cpu.accumulator);
         } else {
-            int value = cpu.read(operandAddress) & BYTE_MASK;
+            int value = cpu.read(op.address()) & BYTE_MASK;
             cpu.setFlag(CARRY_FLAG, (value & NEGATIVE_FLAG) != INITIAL_VALUE);
             value = ((value << 1) | (oldCarry ? 1 : 0)) & BYTE_MASK;
-            cpu.write(operandAddress, (byte) value);
+            cpu.write(op.address(), (byte) value);
             updateNegativeAndZeroFlags(value);
         }
+        return 0;
     }
 
-    public void ror(int operandAddress) {
+    public int ror(Operand op) {
         boolean oldCarry = cpu.isFlagSet(CARRY_FLAG);
-        if (operandAddress == ACCUMULATOR_SENTINEL) {
+        if (op.address() == ACCUMULATOR_SENTINEL) {
             cpu.setFlag(CARRY_FLAG, (cpu.accumulator & CARRY_FLAG) != INITIAL_VALUE);
             cpu.accumulator = ((cpu.accumulator >> 1) | (oldCarry ? NEGATIVE_FLAG : 0)) & BYTE_MASK;
             updateNegativeAndZeroFlags(cpu.accumulator);
         } else {
-            int value = cpu.read(operandAddress) & BYTE_MASK;
+            int value = cpu.read(op.address()) & BYTE_MASK;
             cpu.setFlag(CARRY_FLAG, (value & CARRY_FLAG) != INITIAL_VALUE);
             value = ((value >> 1) | (oldCarry ? NEGATIVE_FLAG : 0)) & BYTE_MASK;
-            cpu.write(operandAddress, (byte) value);
+            cpu.write(op.address(), (byte) value);
             updateNegativeAndZeroFlags(value);
         }
+        return 0;
     }
 
-    public void rti(int operandAddress) {
+    public int rti(Operand op) {
         // Pull Status first (but ignore B and U bits)
         int pulledStatus = cpu.pop() & BYTE_MASK;
         cpu.statusRegister = pulledStatus;
@@ -384,13 +443,57 @@ public class CpuInstructionSet {
         cpu.setFlag(BREAK_COMMAND, false); // B flag does not physically exist in the register
 
         // Then pull PC (Low then High)
-        int lo = cpu.pop() & BYTE_MASK;
-        int hi = cpu.pop() & BYTE_MASK;
-        cpu.programCounter = (hi << BITS_PER_BYTE) | lo;
+        cpu.programCounter = cpu.popAddress();
+        return 0;
     }
 
-    public void nop(int operandAddress) {
+    public int nop(Operand op) {
         // No operation - do nothing
+        return 0;
+    }
+
+    private int branchIf(boolean condition, Operand op){
+        if (condition) {
+            int extraCycles = 1;
+            if (op.pageCrossed()) {
+                extraCycles++;
+            }
+            cpu.programCounter = op.address();
+            return extraCycles;
+        }
+        return 0;
+    }
+
+    public int bne(Operand op) {
+        return branchIf(!cpu.isFlagSet(ZERO_FLAG), op);
+    }
+
+    public int beq(Operand op) {
+        return branchIf(cpu.isFlagSet(ZERO_FLAG), op);
+    }
+
+    public int bpl(Operand op) {
+        return branchIf(!cpu.isFlagSet(NEGATIVE_FLAG), op);
+    }
+
+    public int bmi(Operand op) {
+        return branchIf(cpu.isFlagSet(NEGATIVE_FLAG), op);
+    }
+
+    public int bvc(Operand op) {
+        return branchIf(!cpu.isFlagSet(OVERFLOW_FLAG), op);
+    }
+
+    public int bvs(Operand op) {
+        return branchIf(cpu.isFlagSet(OVERFLOW_FLAG), op);
+    }
+
+    public int bcc(Operand op) {
+        return branchIf(!cpu.isFlagSet(CARRY_FLAG), op);
+    }
+
+    public int bcs(Operand op) {
+        return branchIf(cpu.isFlagSet(CARRY_FLAG), op);
     }
 
     // --- Dispatching Logic ---
@@ -471,20 +574,15 @@ public class CpuInstructionSet {
 
         // No Operation
         instructionExecutors.put("NOP", this::nop);
-    }
 
-    /**
-     * Executes the instruction defined by the metadata.
-     * Dispatches the call to the appropriate instruction implementation based on the mnemonic.
-     * @param metadata The InstructionMetadata containing the mnemonic.
-     * @param operandAddress The resolved memory address for the operand.
-     * @throws IllegalStateException if an executor for the mnemonic is not found.
-     */
-    public void execute(InstructionMetadata metadata, int operandAddress) {
-        InstructionExecutor executor = instructionExecutors.get(metadata.mnemonic());
-        if (executor == null) {
-            throw new IllegalStateException("Executor not found for instruction: " + metadata.mnemonic() + " (Opcode: " + metadata.cycles() + ")");
-        }
-        executor.execute(operandAddress);
+        // Branch Instructions
+        instructionExecutors.put("BNE", this::bne);
+        instructionExecutors.put("BEQ", this::beq);
+        instructionExecutors.put("BPL", this::bpl);
+        instructionExecutors.put("BMI", this::bmi);
+        instructionExecutors.put("BVC", this::bvc);
+        instructionExecutors.put("BVS", this::bvs);
+        instructionExecutors.put("BCC", this::bcc);
+        instructionExecutors.put("BCS", this::bcs);
     }
 }
