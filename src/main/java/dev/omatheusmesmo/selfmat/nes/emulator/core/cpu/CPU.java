@@ -1,8 +1,6 @@
 package dev.omatheusmesmo.selfmat.nes.emulator.core.cpu;
 
-import dev.omatheusmesmo.selfmat.nes.emulator.core.cpu.opcode.AddressingMode;
-import dev.omatheusmesmo.selfmat.nes.emulator.core.cpu.opcode.InstructionMetadata;
-import dev.omatheusmesmo.selfmat.nes.emulator.core.cpu.opcode.Opcodes;
+import dev.omatheusmesmo.selfmat.nes.emulator.core.cpu.opcode.*;
 import dev.omatheusmesmo.selfmat.nes.emulator.core.memory.Bus;
 
 import static dev.omatheusmesmo.selfmat.nes.emulator.core.cpu.CpuConstants.*;
@@ -88,10 +86,10 @@ public class CPU {
             throw new IllegalStateException(String.format("Unknown opcode: 0x%02X at PC: 0x%04X", opcode, (programCounter - 1) & MAX_ADDRESS_VALUE));
         }
 
-        int operandAddress = resolveAddress(metadata.addressingMode());
-        instructionSet.execute(metadata, operandAddress); // Delegates execution to CpuInstructionSet which has the dispatcher
+        Operand operand = resolveAddress(metadata.addressingMode());
+        int extraCycles = instructionSet.execute(metadata, operand);
 
-        return metadata.cycles();
+        return metadata.cycles() + extraCycles;
     }
 
     // --- Helper Methods for Memory and Flags (Package-Private for CpuInstructionSet) ---
@@ -149,7 +147,7 @@ public class CPU {
      * The stack is located on memory page 0x01 ($0100 - $01FF).
      * @param data The byte to push onto the stack.
      */
-    void push(byte data) { // Package-private for CpuInstructionSet
+    void push(byte data) { 
         write(STACK_PAGE_START + stackPointer, data);
         stackPointer = (stackPointer - 1) & BYTE_MASK;
     }
@@ -159,7 +157,7 @@ public class CPU {
      * Pushes high byte then low byte.
      * @param address The 16-bit address to push.
      */
-    void pushAddress(int address) { // Package-private for CpuInstructionSet
+    void pushAddress(int address) { 
         push((byte) ((address >> BITS_PER_BYTE) & BYTE_MASK)); // Push high byte
         push((byte) (address & BYTE_MASK)); // Push low byte
     }
@@ -170,7 +168,7 @@ public class CPU {
      * The stack is located on memory page 0x01 ($0100 - $01FF).
      * @return The byte popped from the stack.
      */
-    byte pop() { // Package-private for CpuInstructionSet
+    byte pop() { 
         stackPointer = (stackPointer + 1) & BYTE_MASK;
         return read(STACK_PAGE_START + stackPointer);
     }
@@ -180,7 +178,7 @@ public class CPU {
      * Pops low byte then high byte.
      * @return The 16-bit address popped from the stack.
      */
-    int popAddress() { // Package-private for CpuInstructionSet
+    int popAddress() { 
         int lo = pop() & BYTE_MASK; // Pop low byte
         int hi = pop() & BYTE_MASK; // Pop high byte
         return (hi << BITS_PER_BYTE) | lo;
@@ -193,72 +191,66 @@ public class CPU {
      * based on the specified addressing mode. This method also advances the
      * Program Counter as necessary for multi-byte operands.
      * @param addressingMode The addressing mode to use.
-     * @return The resolved 16-bit effective memory address of the operand.
+     * @return An Operand containing the 16-bit effective memory address and page crossing status.
      */
-    private int resolveAddress(AddressingMode addressingMode) {
+    private Operand resolveAddress(AddressingMode addressingMode) {
         return switch (addressingMode) {
-            case IMMEDIATE -> {
-                int address = programCounter;
-                programCounter = (programCounter + 1) & MAX_ADDRESS_VALUE;
-                yield address;
-            }
-            case ZERO_PAGE -> {
-                yield fetch() & BYTE_MASK;
-            }
+            case IMMEDIATE -> new Operand(programCounter++, false);
+            case ZERO_PAGE -> new Operand(fetch() & BYTE_MASK, false);
             case ABSOLUTE -> {
                 int lo = fetch() & BYTE_MASK;
                 int hi = fetch() & BYTE_MASK;
-                yield (hi << BITS_PER_BYTE) | lo;
+                yield new Operand((hi << BITS_PER_BYTE) | lo, false);
             }
-            case ZERO_PAGE_X -> {
-                int base = fetch() & BYTE_MASK;
-                yield (base + indexX) & BYTE_MASK;
-            }
-            case ZERO_PAGE_Y -> {
-                int base = fetch() & BYTE_MASK;
-                yield (base + indexY) & BYTE_MASK;
-            }
+            case ZERO_PAGE_X -> new Operand((fetch() + indexX) & BYTE_MASK, false);
+            case ZERO_PAGE_Y -> new Operand((fetch() + indexY) & BYTE_MASK, false);
             case ABSOLUTE_X -> {
                 int lo = fetch() & BYTE_MASK;
                 int hi = fetch() & BYTE_MASK;
-                yield (((hi << BITS_PER_BYTE) | lo) + indexX) & MAX_ADDRESS_VALUE;
+                int base = (hi << BITS_PER_BYTE) | lo;
+                int effective = (base + indexX) & MAX_ADDRESS_VALUE;
+                yield new Operand(effective, (base & 0xFF00) != (effective & 0xFF00));
             }
             case ABSOLUTE_Y -> {
                 int lo = fetch() & BYTE_MASK;
                 int hi = fetch() & BYTE_MASK;
-                yield (((hi << BITS_PER_BYTE) | lo) + indexY) & MAX_ADDRESS_VALUE;
+                int base = (hi << BITS_PER_BYTE) | lo;
+                int effective = (base + indexY) & MAX_ADDRESS_VALUE;
+                yield new Operand(effective, (base & 0xFF00) != (effective & 0xFF00));
             }
             case RELATIVE -> {
                 int offset = fetch() & BYTE_MASK;
                 if (offset > SIGNED_BYTE_MAX) offset -= BYTE_WRAP;
-                yield (programCounter + offset) & MAX_ADDRESS_VALUE;
+                int base = programCounter;
+                int effective = (base + offset) & MAX_ADDRESS_VALUE;
+                yield new Operand(effective, (base & 0xFF00) != (effective & 0xFF00));
             }
             case INDIRECT -> {
-                int pointerLo = fetch() & BYTE_MASK;
-                int pointerHi = fetch() & BYTE_MASK;
-                int pointer = (pointerHi << BITS_PER_BYTE) | pointerLo;
+                int lo = fetch() & BYTE_MASK;
+                int hi = fetch() & BYTE_MASK;
+                int pointer = (hi << BITS_PER_BYTE) | lo;
                 int effectiveLo = read(pointer) & BYTE_MASK;
                 // Emulates 6502 JMP Indirect Page Boundary Bug:
                 // if the low byte of the pointer is 0xFF, the high byte is fetched from the start of the current page.
                 int effectiveHi = read((pointer & 0xFF00) | ((pointer + 1) & BYTE_MASK)) & BYTE_MASK;
-                yield (effectiveHi << BITS_PER_BYTE) | effectiveLo;
+                yield new Operand((effectiveHi << BITS_PER_BYTE) | effectiveLo, false);
             }
             case INDIRECT_INDEXED -> {
-                int pointer = fetch() & BYTE_MASK;
-                int baseLo = read(pointer) & BYTE_MASK;
-                int baseHi = read(pointer + 1) & BYTE_MASK;
+                int ptr = fetch() & BYTE_MASK;
+                int baseLo = read(ptr) & BYTE_MASK;
+                int baseHi = read((ptr + 1) & BYTE_MASK) & BYTE_MASK;
                 int baseAddress = (baseHi << BITS_PER_BYTE) | baseLo;
-                yield (baseAddress + indexY) & MAX_ADDRESS_VALUE;
+                int effective = (baseAddress + indexY) & MAX_ADDRESS_VALUE;
+                yield new Operand(effective, (baseAddress & 0xFF00) != (effective & 0xFF00));
             }
             case INDEXED_INDIRECT -> {
                 int pointer = (fetch() + indexX) & BYTE_MASK;
                 int effectiveLo = read(pointer) & BYTE_MASK;
-                int effectiveHi = read(pointer + 1) & BYTE_MASK;
-                yield (effectiveHi << BITS_PER_BYTE) | effectiveLo;
+                int effectiveHi = read((pointer + 1) & BYTE_MASK) & BYTE_MASK;
+                yield new Operand((effectiveHi << BITS_PER_BYTE) | effectiveLo, false);
             }
-            case ACCUMULATOR -> ACCUMULATOR_SENTINEL;
-            // IMPLIED mode is handled by the instruction logic and does not require an operand address.
-            default -> INITIAL_VALUE;
+            case ACCUMULATOR -> new Operand(ACCUMULATOR_SENTINEL, false);
+            default -> new Operand(INITIAL_VALUE, false);
         };
     }
 }
